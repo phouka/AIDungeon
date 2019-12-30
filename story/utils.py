@@ -15,7 +15,22 @@ with open("story/censored_words.txt", "r") as f:
 pf = ProfanityFilter(custom_censor_list=censored_words)
 
 
-def console_print(text, width=75):
+queue_string = ""
+
+async def flush_print(ctx):
+    global queue_string
+
+    strip_text = queue_string.strip()
+    if strip_text != "":
+        await ctx.send('```'+queue_string+'```')
+    queue_string = ""
+
+async def raw_print(ctx, text):
+    global queue_string
+    queue_string += text + "\n"
+
+
+async def console_print(ctx, text, width=75):
     last_newline = 0
     i = 0
     while i < len(text):
@@ -27,25 +42,39 @@ def console_print(text, width=75):
         else:
             last_newline += 1
         i += 1
-    print(text)
+    await raw_print(ctx, text)
 
 
 def get_similarity(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
 
-def get_num_options(num):
+async def ask_input(ctx, str=None):
+    def pred(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    if str:
+        await raw_print(ctx, str)
+    await flush_print(ctx)
+    msg = await ctx.bot.wait_for('message', check=pred)
+    return msg.content
+
+
+async def get_num_options(ctx, num):
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
 
     while True:
-        choice = input("Enter the number of your choice: ")
+        choice = await ask_input(ctx, "Enter the number of your choice: ")
+
         try:
             result = int(choice)
             if result >= 0 and result < num:
                 return result
             else:
-                print("Error invalid choice. ")
+                await raw_print(ctx, "Error invalid choice. ")
         except ValueError:
-            print("Error invalid choice. ")
+            await raw_print(ctx, "Error invalid choice. ")
 
 
 def player_died(text):
